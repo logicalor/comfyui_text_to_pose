@@ -53,8 +53,9 @@ def install():
 
     # Create symlink to t2p module (or copy on Windows)
     t2p_source = os.path.join(t2p_repo_path, "t2p")
+    t2p_relative_source = os.path.join("t2p_repo", "t2p")  # Relative path for symlink
     
-    if os.path.exists(t2p_link_path):
+    if os.path.exists(t2p_link_path) or os.path.islink(t2p_link_path):
         if os.path.islink(t2p_link_path):
             os.unlink(t2p_link_path)
         elif os.path.isdir(t2p_link_path):
@@ -64,9 +65,9 @@ def install():
     if os.path.exists(t2p_source):
         print("[Text-to-Pose] Setting up t2p module...")
         try:
-            # Try symlink first (works on Linux/Mac and Windows with dev mode)
-            os.symlink(t2p_source, t2p_link_path)
-            print("[Text-to-Pose] Created symlink to t2p module.")
+            # Use relative symlink (works on Linux/Mac and Windows with dev mode)
+            os.symlink(t2p_relative_source, t2p_link_path)
+            print("[Text-to-Pose] Created relative symlink to t2p module.")
         except OSError:
             # Fallback to copying for Windows without dev mode
             import shutil
