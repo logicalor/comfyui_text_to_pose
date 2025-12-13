@@ -307,6 +307,34 @@ class TextToPoseBatch:
                 if isinstance(dw_pose, list):
                     dw_pose = dw_pose[0]
                 
+                # Scale coordinates if they appear to be normalized (0-1 range)
+                bodies = dw_pose.get("bodies", {})
+                candidate = bodies.get("candidate")
+                if candidate is not None:
+                    candidate = np.array(candidate) if not isinstance(candidate, np.ndarray) else candidate
+                    if candidate.max() <= 1.0:
+                        candidate[:, 0] *= width
+                        candidate[:, 1] *= height
+                        dw_pose["bodies"]["candidate"] = candidate
+                
+                # Scale faces if present and normalized
+                faces = dw_pose.get("faces")
+                if faces is not None:
+                    faces = np.array(faces) if not isinstance(faces, np.ndarray) else faces
+                    if faces.size > 0 and faces.max() <= 1.0:
+                        faces[..., 0] *= width
+                        faces[..., 1] *= height
+                    dw_pose["faces"] = faces
+                
+                # Scale hands if present and normalized
+                hands = dw_pose.get("hands")
+                if hands is not None:
+                    hands = np.array(hands) if not isinstance(hands, np.ndarray) else hands
+                    if hands.size > 0 and hands.max() <= 1.0:
+                        hands[..., 0] *= width
+                        hands[..., 1] *= height
+                    dw_pose["hands"] = hands
+                
                 pose_image_np = draw_pose(dw_pose, height, width)
                 
                 pose_tensor = torch.from_numpy(pose_image_np).float() / 255.0
