@@ -28,7 +28,7 @@ def install():
             subprocess.run(
                 [
                     "git", "clone", "--depth", "1",
-                    "https://github.com/clement-bonnet/text-to-pose",
+                    "https://github.com/logicalor/text-to-pose",
                     t2p_repo_path
                 ],
                 check=True,
