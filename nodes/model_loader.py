@@ -32,7 +32,8 @@ class T2PModelLoader:
             },
             "optional": {
                 "device": (["auto", "cuda", "cpu"], {"default": "auto"}),
-                "dtype": (["auto", "float32", "float16", "bfloat16"], {"default": "auto"}),
+                "dtype": (["float32", "float16", "bfloat16"], {"default": "float32"}),
+                "force_cpu": ("BOOLEAN", {"default": False, "tooltip": "Force CPU mode (slower but more compatible, recommended for AMD/ROCm)"}),
             }
         }
     
@@ -41,24 +42,23 @@ class T2PModelLoader:
     FUNCTION = "load_model"
     CATEGORY = "text-to-pose"
     
-    def load_model(self, model_name, device="auto", dtype="auto"):
+    def load_model(self, model_name, device="auto", dtype="float32", force_cpu=False):
         from t2p.model import T2PTransformer
         
         # Determine device
-        if device == "auto":
+        if force_cpu:
+            device = "cpu"
+        elif device == "auto":
             device = "cuda" if torch.cuda.is_available() else "cpu"
         device = torch.device(device)
         
-        # Determine dtype - default to float32 for stability (especially on ROCm)
-        if dtype == "auto":
-            torch_dtype = torch.float32  # Use float32 by default for stability
-        else:
-            dtype_map = {
-                "float32": torch.float32,
-                "float16": torch.float16,
-                "bfloat16": torch.bfloat16,
-            }
-            torch_dtype = dtype_map[dtype]
+        # Determine dtype
+        dtype_map = {
+            "float32": torch.float32,
+            "float16": torch.float16,
+            "bfloat16": torch.bfloat16,
+        }
+        torch_dtype = dtype_map[dtype]
         
         # Load model from HuggingFace
         model_id = self.MODELS[model_name]

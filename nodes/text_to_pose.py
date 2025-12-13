@@ -91,7 +91,11 @@ class TextToPose:
         # Get CLIP processor for tokenization
         clip_processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
         
-        with torch.no_grad():
+        # Disable autocast to avoid mixed precision issues on ROCm
+        with torch.no_grad(), torch.amp.autocast(device_type='cuda', enabled=False):
+            # Ensure model is in the correct dtype
+            model = model.to(dtype=dtype)
+            
             # Tokenize prompt
             inputs = clip_processor(
                 text=prompt,
@@ -107,6 +111,18 @@ class TextToPose:
                 output_hidden_states=True
             )
             text_embeddings = text_outputs.hidden_states[-2].squeeze(0).to(dtype)
+            
+            # Check for NaN in embeddings
+            if torch.isnan(text_embeddings).any():
+                print("[T2P] Warning: NaN detected in text embeddings, using CPU fallback")
+                # Fallback to CPU
+                model = model.to("cpu")
+                input_ids = input_ids.to("cpu")
+                text_outputs = model.clip_text_model(
+                    input_ids,
+                    output_hidden_states=True
+                )
+                text_embeddings = text_outputs.hidden_states[-2].squeeze(0).float()
             
             # Generate pose samples
             poses = model.generate(
