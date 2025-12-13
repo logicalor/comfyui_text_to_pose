@@ -135,6 +135,21 @@ class TextToPose:
             
             # Convert to DWPose format
             dw_pose = model.convert_to_dwpose(poses)
+            
+            # Debug: Print pose info
+            bodies = dw_pose.get("bodies", {})
+            candidate = bodies.get("candidate")
+            if candidate is not None:
+                candidate = np.array(candidate) if not isinstance(candidate, np.ndarray) else candidate
+                print(f"[T2P] Pose candidate shape: {candidate.shape}")
+                print(f"[T2P] Pose candidate min/max: {candidate.min():.2f} / {candidate.max():.2f}")
+                
+                # Scale coordinates if they appear to be normalized (0-1 range)
+                if candidate.max() <= 1.0:
+                    print(f"[T2P] Scaling normalized coordinates to {width}x{height}")
+                    candidate[:, 0] *= width
+                    candidate[:, 1] *= height
+                    dw_pose["bodies"]["candidate"] = candidate
         
         # Render pose image
         pose_image_np = draw_pose(dw_pose, height, width)
