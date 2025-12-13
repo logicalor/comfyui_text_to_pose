@@ -32,6 +32,7 @@ class T2PModelLoader:
             },
             "optional": {
                 "device": (["auto", "cuda", "cpu"], {"default": "auto"}),
+                "dtype": (["auto", "float32", "float16", "bfloat16"], {"default": "auto"}),
             }
         }
     
@@ -40,7 +41,7 @@ class T2PModelLoader:
     FUNCTION = "load_model"
     CATEGORY = "text-to-pose"
     
-    def load_model(self, model_name, device="auto"):
+    def load_model(self, model_name, device="auto", dtype="auto"):
         from t2p.model import T2PTransformer
         
         # Determine device
@@ -48,17 +49,28 @@ class T2PModelLoader:
             device = "cuda" if torch.cuda.is_available() else "cpu"
         device = torch.device(device)
         
+        # Determine dtype - default to float32 for stability (especially on ROCm)
+        if dtype == "auto":
+            torch_dtype = torch.float32  # Use float32 by default for stability
+        else:
+            dtype_map = {
+                "float32": torch.float32,
+                "float16": torch.float16,
+                "bfloat16": torch.bfloat16,
+            }
+            torch_dtype = dtype_map[dtype]
+        
         # Load model from HuggingFace
         model_id = self.MODELS[model_name]
         print(f"[T2P] Loading model from {model_id}...")
         
         t2p_model = T2PTransformer.from_pretrained(model_id)
-        t2p_model.to(device)
+        t2p_model.to(device=device, dtype=torch_dtype)
         t2p_model.eval()
         
-        print(f"[T2P] Model loaded successfully on {device}")
+        print(f"[T2P] Model loaded successfully on {device} with dtype {torch_dtype}")
         
-        return ({"model": t2p_model, "device": device},)
+        return ({"model": t2p_model, "device": device, "dtype": torch_dtype},)
 
 
 NODE_CLASS_MAPPINGS = {

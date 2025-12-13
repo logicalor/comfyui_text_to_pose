@@ -78,6 +78,7 @@ class TextToPose:
         
         model = t2p_model["model"]
         device = t2p_model["device"]
+        dtype = t2p_model.get("dtype", torch.float32)
         
         # Set seed for reproducibility
         torch.manual_seed(seed)
@@ -105,7 +106,7 @@ class TextToPose:
                 input_ids,
                 output_hidden_states=True
             )
-            text_embeddings = text_outputs.hidden_states[-2].squeeze(0)
+            text_embeddings = text_outputs.hidden_states[-2].squeeze(0).to(dtype)
             
             # Generate pose samples
             poses = model.generate(
@@ -216,6 +217,7 @@ class TextToPoseBatch:
         
         model = t2p_model["model"]
         device = t2p_model["device"]
+        dtype = t2p_model.get("dtype", torch.float32)
         
         image_ratio = width / height
         clip_processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
@@ -236,7 +238,7 @@ class TextToPoseBatch:
                 input_ids,
                 output_hidden_states=True
             )
-            text_embeddings = text_outputs.hidden_states[-2].squeeze(0)
+            text_embeddings = text_outputs.hidden_states[-2].squeeze(0).to(dtype)
             
             # Generate batch_size different poses
             for i in range(batch_size):
