@@ -51,19 +51,29 @@ def draw_pose(pose_dict, height, width):
             if candidate is not None and subset is not None:
                 candidate = np.array(candidate) if not isinstance(candidate, np.ndarray) else candidate
                 subset = np.array(subset) if not isinstance(subset, np.ndarray) else subset
-                canvas = draw_bodypose(canvas, candidate, subset)
+                if candidate.size > 0:
+                    canvas = draw_bodypose(canvas, candidate, subset)
         
-        # Draw faces
+        # Draw faces (filter out invalid points near origin)
         if pose_dict.get("faces") is not None:
             faces = pose_dict["faces"]
             faces = np.array(faces) if not isinstance(faces, np.ndarray) else faces
-            canvas = draw_facepose(canvas, faces)
+            if faces.size > 0:
+                # Filter out points that are essentially at origin (invalid)
+                # Set very small coordinates to -1 (which draw_facepose ignores)
+                mask = (faces[..., 0] < 5) & (faces[..., 1] < 5)
+                faces[mask] = -1
+                canvas = draw_facepose(canvas, faces)
         
-        # Draw hands
+        # Draw hands (filter out invalid points near origin)
         if pose_dict.get("hands") is not None:
             hands = pose_dict["hands"]
             hands = np.array(hands) if not isinstance(hands, np.ndarray) else hands
-            canvas = draw_handpose(canvas, hands)
+            if hands.size > 0:
+                # Filter out points that are essentially at origin (invalid)
+                mask = (hands[..., 0] < 5) & (hands[..., 1] < 5)
+                hands[mask] = -1
+                canvas = draw_handpose(canvas, hands)
         
         return canvas
         

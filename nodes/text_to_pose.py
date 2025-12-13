@@ -150,6 +150,26 @@ class TextToPose:
                     candidate[:, 0] *= width
                     candidate[:, 1] *= height
                     dw_pose["bodies"]["candidate"] = candidate
+            
+            # Scale faces if present and normalized
+            faces = dw_pose.get("faces")
+            if faces is not None:
+                faces = np.array(faces) if not isinstance(faces, np.ndarray) else faces
+                if faces.size > 0 and faces.max() <= 1.0:
+                    print(f"[T2P] Scaling face coordinates to {width}x{height}")
+                    faces[..., 0] *= width
+                    faces[..., 1] *= height
+                dw_pose["faces"] = faces
+            
+            # Scale hands if present and normalized
+            hands = dw_pose.get("hands")
+            if hands is not None:
+                hands = np.array(hands) if not isinstance(hands, np.ndarray) else hands
+                if hands.size > 0 and hands.max() <= 1.0:
+                    print(f"[T2P] Scaling hand coordinates to {width}x{height}")
+                    hands[..., 0] *= width
+                    hands[..., 1] *= height
+                dw_pose["hands"] = hands
         
         # Render pose image
         pose_image_np = draw_pose(dw_pose, height, width)
