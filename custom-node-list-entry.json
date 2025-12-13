@@ -1,0 +1,16 @@
+{
+    "custom_nodes": [
+        {
+            "author": "YOUR_USERNAME",
+            "title": "ComfyUI Text-to-Pose",
+            "id": "comfyui-text-to-pose",
+            "reference": "https://github.com/YOUR_USERNAME/comfyui-text-to-pose",
+            "files": [
+                "https://github.com/YOUR_USERNAME/comfyui-text-to-pose"
+            ],
+            "install_type": "git-clone",
+            "description": "Generate human poses from text descriptions using the T2P Transformer model. Creates DWPose-compatible outputs for ControlNet and T2I-Adapter workflows. Based on 'From Text to Pose to Image' (NeurIPS 2024).",
+            "pip": ["transformers", "huggingface_hub", "controlnet_aux", "diffusers", "accelerate"]
+        }
+    ]
+}

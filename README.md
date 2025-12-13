@@ -1,0 +1,202 @@
+# ComfyUI Text-to-Pose Nodes
+
+Generate human poses from text descriptions using the T2P Transformer model, then use them to guide image generation with ControlNet or T2I-Adapter.
+
+Based on the paper ["From Text to Pose to Image: Improving Diffusion Model Control and Quality"](https://arxiv.org/abs/2411.12872) (NeurIPS 2024 Workshop).
+
+## Features
+
+- **Text to Pose Generation**: Convert natural language descriptions into DWPose format poses
+- **Multi-Person Support**: Generate up to 5 people in a single image
+- **Batch Generation**: Create multiple pose variations from a single prompt
+- **T2I-Adapter Integration**: Built-in support for the author's SDXL pose adapter
+- **Raw Keypoints Output**: Access pose keypoints for advanced workflows
+
+## Installation
+
+### Method 1: ComfyUI Manager (Recommended)
+1. Open ComfyUI Manager
+2. Click "Install Custom Nodes"
+3. Search for "Text-to-Pose" 
+4. Click Install
+5. Restart ComfyUI
+
+The install script will automatically clone the required `text-to-pose` library.
+
+### Method 2: Manual Installation
+
+```bash
+# Navigate to ComfyUI custom_nodes folder
+cd ComfyUI/custom_nodes
+
+# Clone this repository
+git clone https://github.com/YOUR_USERNAME/comfyui-text-to-pose
+cd comfyui-text-to-pose
+
+# Run the install script (clones t2p library automatically)
+python install.py
+
+# Or manually:
+# git clone https://github.com/clement-bonnet/text-to-pose t2p_repo
+# ln -s t2p_repo/t2p t2p
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Restart ComfyUI
+```
+
+### Method 3: ComfyUI Registry (comfy-cli)
+
+```bash
+# Install comfy-cli if not already installed
+pip install comfy-cli
+
+# Install the node pack
+comfy node registry-install comfyui-text-to-pose
+```
+
+## Nodes
+
+### T2P Model Loader
+Loads the Text-to-Pose transformer model from HuggingFace.
+
+| Input | Type | Description |
+|-------|------|-------------|
+| model_name | dropdown | Model to load (default: t2p-transformer-v0) |
+| device | dropdown | Device to load model on (auto/cuda/cpu) |
+
+| Output | Type | Description |
+|--------|------|-------------|
+| t2p_model | T2P_MODEL | Loaded model for use with generator nodes |
+
+### Text to Pose
+Generates a pose image from a text prompt.
+
+| Input | Type | Description |
+|-------|------|-------------|
+| t2p_model | T2P_MODEL | Model from T2P Model Loader |
+| prompt | string | Text description of desired pose |
+| width | int | Output image width (256-2048) |
+| height | int | Output image height (256-2048) |
+| num_poses | int | Number of people to generate (1-5) |
+| seed | int | Random seed for reproducibility |
+| bbox_temperature | float | Bounding box sampling temperature (0.01-2.0) |
+| pose_temperature | float | Pose sampling temperature (0.01-2.0) |
+
+| Output | Type | Description |
+|--------|------|-------------|
+| pose_image | IMAGE | Rendered pose visualization |
+| pose_keypoints | POSE_KEYPOINTS | Raw keypoints data |
+
+### Text to Pose (Batch)
+Generates multiple pose variations from a single prompt.
+
+| Input | Type | Description |
+|-------|------|-------------|
+| t2p_model | T2P_MODEL | Model from T2P Model Loader |
+| prompt | string | Text description of desired pose |
+| batch_size | int | Number of variations to generate (1-16) |
+| ... | ... | Same as Text to Pose |
+
+| Output | Type | Description |
+|--------|------|-------------|
+| pose_images | IMAGE | Batch of pose images |
+
+### T2I Pose Adapter Loader
+Loads the T2I-Adapter trained on DWPose for SDXL.
+
+| Input | Type | Description |
+|-------|------|-------------|
+| adapter_name | dropdown | Adapter to load |
+| device | dropdown | Device (auto/cuda/cpu) |
+| dtype | dropdown | Data type (auto/float16/float32/bfloat16) |
+
+| Output | Type | Description |
+|--------|------|-------------|
+| t2i_adapter | T2I_ADAPTER | Loaded adapter for conditioning |
+
+### Apply T2I Pose Adapter
+Prepares adapter conditioning from a pose image.
+
+| Input | Type | Description |
+|-------|------|-------------|
+| t2i_adapter | T2I_ADAPTER | Adapter from loader |
+| pose_image | IMAGE | Pose image to condition on |
+| adapter_conditioning_scale | float | Strength of conditioning (0-2) |
+
+## Example Workflows
+
+### Basic Text to Pose
+```
+[T2P Model Loader] → [Text to Pose] → [Preview Image]
+```
+
+### Pose-Controlled Image Generation (ControlNet)
+```
+[T2P Model Loader] → [Text to Pose] → [Apply ControlNet] → [KSampler] → [VAE Decode]
+                                              ↑
+                            [Load ControlNet Model (OpenPose)]
+```
+
+### Pose-Controlled Image Generation (T2I-Adapter)
+```
+[T2P Model Loader] → [Text to Pose] ──────────────────────→ [Apply T2I Pose Adapter]
+                                                                      ↓
+[T2I Pose Adapter Loader] ────────────────────────────────→ [SDXL Pipeline]
+```
+
+## Example Prompts
+
+- "a person standing with arms raised above their head"
+- "two people dancing together"
+- "a woman sitting cross-legged on the floor"
+- "a man running to the left"
+- "a person doing a yoga tree pose"
+- "three friends taking a group photo"
+
+## Tips
+
+### Temperature Settings
+- **Lower temperature (0.05-0.1)**: More deterministic, consistent poses
+- **Higher temperature (0.3-0.5)**: More variety, useful for batch generation
+- **Very high temperature (>1.0)**: May produce unusual/unrealistic poses
+
+### Multi-Person Scenes
+- Use `num_poses` to specify how many people to generate
+- The model will automatically position multiple people in the scene
+- Works best with prompts that describe multiple people
+
+### Integration with Existing Workflows
+- The pose image output is compatible with any ControlNet/OpenPose workflow
+- POSE_KEYPOINTS output can be converted to other formats if needed
+
+## Requirements
+
+- Python 3.9+
+- PyTorch 2.0+
+- transformers
+- huggingface_hub
+- controlnet_aux
+- diffusers (for T2I-Adapter)
+- Pillow
+- numpy
+
+## Model Information
+
+| Model | HuggingFace ID | Size |
+|-------|----------------|------|
+| T2P Transformer | clement-bonnet/t2p-transformer-v0 | ~150MB |
+| T2I-Adapter (SDXL) | clement-bonnet/t2i-adapter-sdxl-dwpose | ~300MB |
+
+Models are automatically downloaded from HuggingFace on first use.
+
+## Credits
+
+- Original paper and code: [clement-bonnet/text-to-pose](https://github.com/clement-bonnet/text-to-pose)
+- Paper: "From Text to Pose to Image: Improving Diffusion Model Control and Quality"
+- Authors: Clément Bonnet et al. (NeurIPS 2024 Workshop on Compositional Learning)
+
+## License
+
+This ComfyUI integration follows the license of the original text-to-pose repository.
