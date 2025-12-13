@@ -12,6 +12,7 @@ class TextToPose:
     """
     Generates human poses from text descriptions using the T2P Transformer.
     Outputs both a rendered pose image and raw keypoints data.
+    The number of people in the image is automatically determined from the prompt.
     """
     
     @classmethod
@@ -34,13 +35,6 @@ class TextToPose:
                     "min": 256,
                     "max": 2048,
                     "step": 64
-                }),
-                "num_poses": ("INT", {
-                    "default": 1,
-                    "min": 1,
-                    "max": 5,
-                    "step": 1,
-                    "tooltip": "Number of people/poses to generate"
                 }),
                 "seed": ("INT", {
                     "default": 0,
@@ -71,7 +65,7 @@ class TextToPose:
     FUNCTION = "generate_pose"
     CATEGORY = "text-to-pose"
     
-    def generate_pose(self, t2p_model, prompt, width, height, num_poses, seed,
+    def generate_pose(self, t2p_model, prompt, width, height, seed,
                       bbox_temperature=0.1, pose_temperature=0.1):
         from transformers import AutoProcessor
         from .pose_utils import draw_pose
@@ -125,9 +119,11 @@ class TextToPose:
                 text_embeddings = text_outputs.hidden_states[-2].squeeze(0).float()
             
             # Generate pose samples
+            # The model automatically determines the number of people from the prompt
+            # (supports up to 5 people per image)
             poses = model.generate(
                 text_embeddings=text_embeddings,
-                num_poses=num_poses,
+                num_poses=1,  # Batch size of 1 (single image output)
                 bbox_dist_temperature=bbox_temperature,
                 pose_dist_temperature=pose_temperature,
                 image_ratio=image_ratio,
@@ -135,6 +131,10 @@ class TextToPose:
             
             # Convert to DWPose format
             dw_pose = model.convert_to_dwpose(poses)
+            
+            # Handle case where convert_to_dwpose returns a list (batch output)
+            if isinstance(dw_pose, list):
+                dw_pose = dw_pose[0]  # Take the first result
             
             # Debug: Print pose info
             bodies = dw_pose.get("bodies", {})
@@ -197,6 +197,7 @@ class TextToPoseBatch:
     """
     Generates multiple pose variations from a single text prompt.
     Useful for exploring different pose interpretations.
+    The number of people per image is automatically determined from the prompt.
     """
     
     @classmethod
@@ -219,13 +220,6 @@ class TextToPoseBatch:
                     "min": 256,
                     "max": 2048,
                     "step": 64
-                }),
-                "num_poses_per_image": ("INT", {
-                    "default": 1,
-                    "min": 1,
-                    "max": 5,
-                    "step": 1,
-                    "tooltip": "Number of people per image"
                 }),
                 "batch_size": ("INT", {
                     "default": 4,
@@ -261,7 +255,7 @@ class TextToPoseBatch:
     FUNCTION = "generate_batch"
     CATEGORY = "text-to-pose"
     
-    def generate_batch(self, t2p_model, prompt, width, height, num_poses_per_image,
+    def generate_batch(self, t2p_model, prompt, width, height,
                        batch_size, seed, bbox_temperature=0.3, pose_temperature=0.3):
         from transformers import AutoProcessor
         from .pose_utils import draw_pose
@@ -301,13 +295,18 @@ class TextToPoseBatch:
                 
                 poses = model.generate(
                     text_embeddings=text_embeddings,
-                    num_poses=num_poses_per_image,
+                    num_poses=1,  # Batch size of 1 per iteration
                     bbox_dist_temperature=bbox_temperature,
                     pose_dist_temperature=pose_temperature,
                     image_ratio=image_ratio,
                 )
                 
                 dw_pose = model.convert_to_dwpose(poses)
+                
+                # Handle case where convert_to_dwpose returns a list
+                if isinstance(dw_pose, list):
+                    dw_pose = dw_pose[0]
+                
                 pose_image_np = draw_pose(dw_pose, height, width)
                 
                 pose_tensor = torch.from_numpy(pose_image_np).float() / 255.0
