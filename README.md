@@ -59,19 +59,20 @@ comfy node registry-install comfyui-text-to-pose
 ## Nodes
 
 ### T2P Model Loader
-Loads the Text-to-Pose transformer model from HuggingFace.
+Loads the Text-to-Pose transformer model from HuggingFace. Models are stored locally in ComfyUI's `models/t2p/` directory.
 
 | Input | Type | Description |
 |-------|------|-------------|
 | model_name | dropdown | Model to load (default: t2p-transformer-v0) |
 | device | dropdown | Device to load model on (auto/cuda/cpu) |
+| force_cpu | boolean | Force CPU mode (slower but more compatible) |
 
 | Output | Type | Description |
 |--------|------|-------------|
 | t2p_model | T2P_MODEL | Loaded model for use with generator nodes |
 
 ### Text to Pose
-Generates a pose image from a text prompt.
+Generates a pose image from a text prompt. The number of people is automatically determined from the prompt (up to 5).
 
 | Input | Type | Description |
 |-------|------|-------------|
@@ -79,7 +80,6 @@ Generates a pose image from a text prompt.
 | prompt | string | Text description of desired pose |
 | width | int | Output image width (256-2048) |
 | height | int | Output image height (256-2048) |
-| num_poses | int | Number of people to generate (1-5) |
 | seed | int | Random seed for reproducibility |
 | bbox_temperature | float | Bounding box sampling temperature (0.01-2.0) |
 | pose_temperature | float | Pose sampling temperature (0.01-2.0) |
@@ -90,14 +90,18 @@ Generates a pose image from a text prompt.
 | pose_keypoints | POSE_KEYPOINTS | Raw keypoints data |
 
 ### Text to Pose (Batch)
-Generates multiple pose variations from a single prompt.
+Generates multiple pose variations from a single prompt. Useful for exploring different interpretations of the same description.
 
 | Input | Type | Description |
 |-------|------|-------------|
 | t2p_model | T2P_MODEL | Model from T2P Model Loader |
 | prompt | string | Text description of desired pose |
+| width | int | Output image width (256-2048) |
+| height | int | Output image height (256-2048) |
 | batch_size | int | Number of variations to generate (1-16) |
-| ... | ... | Same as Text to Pose |
+| seed | int | Random seed for reproducibility |
+| bbox_temperature | float | Bounding box sampling temperature (0.01-2.0) |
+| pose_temperature | float | Pose sampling temperature (0.01-2.0) |
 
 | Output | Type | Description |
 |--------|------|-------------|
@@ -163,9 +167,10 @@ Prepares adapter conditioning from a pose image.
 - **Very high temperature (>1.0)**: May produce unusual/unrealistic poses
 
 ### Multi-Person Scenes
-- Use `num_poses` to specify how many people to generate
-- The model will automatically position multiple people in the scene
-- Works best with prompts that describe multiple people
+- The model automatically determines the number of people from your prompt
+- Supports up to 5 people per image
+- Use descriptive prompts like "two people dancing" or "a group of friends"
+- Works best with prompts that clearly describe multiple people
 
 ### Integration with Existing Workflows
 - The pose image output is compatible with any ControlNet/OpenPose workflow
@@ -189,7 +194,7 @@ Prepares adapter conditioning from a pose image.
 | T2P Transformer | clement-bonnet/t2p-transformer-v0 | ~150MB |
 | T2I-Adapter (SDXL) | clement-bonnet/t2i-adapter-sdxl-dwpose | ~300MB |
 
-Models are automatically downloaded from HuggingFace on first use.
+Models are automatically downloaded from HuggingFace on first use and cached locally in `ComfyUI/models/t2p/`.
 
 ## Credits
 
