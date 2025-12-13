@@ -3,6 +3,14 @@ T2P Model Loader Node for ComfyUI
 Loads the Text-to-Pose transformer model from HuggingFace
 """
 
+import os
+import sys
+
+# Add parent directory to path so t2p module can be found
+_current_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
+
 import torch
 
 
