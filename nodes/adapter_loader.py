@@ -1,9 +1,33 @@
 """
 T2I-Adapter Loader Node for ComfyUI
 Loads the DWPose T2I-Adapter for SDXL from HuggingFace
+
+NOTE: For the best ComfyUI integration, we recommend using the pose image output
+from Text to Pose with ComfyUI's built-in ControlNet nodes and an OpenPose model.
+The T2I-Adapter nodes here are provided for advanced users who want to use the
+specific adapter from the paper authors.
 """
 
 import torch
+import os
+
+
+def get_comfyui_models_dir():
+    """Get ComfyUI's models directory for T2I-Adapters."""
+    try:
+        import folder_paths
+        # Check if there's a t2i_adapter directory
+        if hasattr(folder_paths, 'folder_names_and_paths') and 't2i_adapter' in folder_paths.folder_names_and_paths:
+            return folder_paths.get_folder_paths('t2i_adapter')[0]
+        # Fall back to models/t2p
+        models_dir = folder_paths.models_dir
+        t2p_dir = os.path.join(models_dir, "t2p", "adapters")
+        os.makedirs(t2p_dir, exist_ok=True)
+        return t2p_dir
+    except ImportError:
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "t2p", "adapters")
+        os.makedirs(cache_dir, exist_ok=True)
+        return cache_dir
 
 
 class T2IPoseAdapterLoader:
@@ -76,48 +100,71 @@ class T2IPoseAdapterLoader:
 
 class ApplyT2IPoseAdapter:
     """
-    Applies the T2I-Adapter to condition SDXL generation on a pose image.
-    This node integrates with the standard ComfyUI SDXL workflow.
+    Applies the T2I-Adapter to condition generation on a pose image.
+    
+    NOTE: This node uses diffusers T2I-Adapter format. For best ComfyUI integration,
+    we recommend using ComfyUI's built-in ControlNet nodes with an OpenPose model instead,
+    as they integrate more seamlessly with KSampler.
+    
+    To use the built-in approach:
+    1. Use "Load ControlNet Model" with an OpenPose ControlNet
+    2. Connect "Text to Pose" output to "Apply ControlNet"
+    3. Connect to KSampler as normal
     """
     
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                "model": ("MODEL",),
                 "t2i_adapter": ("T2I_ADAPTER",),
                 "pose_image": ("IMAGE",),
-                "adapter_conditioning_scale": ("FLOAT", {
+                "strength": ("FLOAT", {
                     "default": 0.8,
                     "min": 0.0,
-                    "max": 2.0,
+                    "max": 1.0,
                     "step": 0.05,
                     "tooltip": "Strength of pose conditioning (0 = no effect, 1 = full effect)"
                 }),
             },
         }
     
-    RETURN_TYPES = ("T2I_ADAPTER_CONDITIONING",)
-    RETURN_NAMES = ("adapter_conditioning",)
+    RETURN_TYPES = ("MODEL", "T2I_ADAPTER_FEATURES",)
+    RETURN_NAMES = ("model", "adapter_features",)
     FUNCTION = "apply_adapter"
     CATEGORY = "text-to-pose"
     
-    def apply_adapter(self, t2i_adapter, pose_image, adapter_conditioning_scale):
+    def apply_adapter(self, model, t2i_adapter, pose_image, strength):
         """
-        Prepares adapter conditioning from a pose image.
-        The output can be used with SDXL pipelines that support T2I-Adapter.
+        Computes T2I-Adapter features from the pose image.
+        
+        For full integration, this would need to patch the UNet's forward pass.
+        Currently returns the adapter features for use with custom samplers.
+        
+        For standard workflows, use ControlNet instead.
         """
+        import torch
+        
         adapter = t2i_adapter["adapter"]
         device = t2i_adapter["device"]
         dtype = t2i_adapter["dtype"]
         
-        # Convert ComfyUI image (B, H, W, C) to diffusers format (B, C, H, W)
-        # Also convert from [0, 1] float to proper format
+        # Convert ComfyUI image (B, H, W, C) to adapter format (B, C, H, W)
         pose_tensor = pose_image.permute(0, 3, 1, 2).to(device=device, dtype=dtype)
         
-        return ({
-            "adapter": adapter,
-            "adapter_image": pose_tensor,
-            "adapter_conditioning_scale": adapter_conditioning_scale,
+        # Get adapter features from the pose image
+        with torch.no_grad():
+            adapter_features = adapter(pose_tensor)
+        
+        # Scale features by strength
+        if strength != 1.0:
+            adapter_features = [f * strength for f in adapter_features]
+        
+        # Return model unchanged (ControlNet is recommended for actual generation)
+        # and the adapter features for custom integrations
+        return (model, {
+            "features": adapter_features,
+            "strength": strength,
         },)
 
 

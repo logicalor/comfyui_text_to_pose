@@ -1,6 +1,6 @@
 # ComfyUI Text-to-Pose Nodes
 
-Generate human poses from text descriptions using the T2P Transformer model, then use them to guide image generation with ControlNet or T2I-Adapter.
+Generate human poses from text descriptions using the T2P Transformer model, then use them to guide image generation with ControlNet.
 
 Based on the paper ["From Text to Pose to Image: Improving Diffusion Model Control and Quality"](https://arxiv.org/abs/2411.12872) (NeurIPS 2024 Workshop).
 
@@ -9,7 +9,7 @@ Based on the paper ["From Text to Pose to Image: Improving Diffusion Model Contr
 - **Text to Pose Generation**: Convert natural language descriptions into DWPose format poses
 - **Multi-Person Support**: Generate up to 5 people in a single image
 - **Batch Generation**: Create multiple pose variations from a single prompt
-- **T2I-Adapter Integration**: Built-in support for the author's SDXL pose adapter
+- **ControlNet Compatible**: Output works with any OpenPose ControlNet model
 - **Raw Keypoints Output**: Access pose keypoints for advanced workflows
 
 ## Installation
@@ -107,28 +107,6 @@ Generates multiple pose variations from a single prompt. Useful for exploring di
 |--------|------|-------------|
 | pose_images | IMAGE | Batch of pose images |
 
-### T2I Pose Adapter Loader
-Loads the T2I-Adapter trained on DWPose for SDXL.
-
-| Input | Type | Description |
-|-------|------|-------------|
-| adapter_name | dropdown | Adapter to load |
-| device | dropdown | Device (auto/cuda/cpu) |
-| dtype | dropdown | Data type (auto/float16/float32/bfloat16) |
-
-| Output | Type | Description |
-|--------|------|-------------|
-| t2i_adapter | T2I_ADAPTER | Loaded adapter for conditioning |
-
-### Apply T2I Pose Adapter
-Prepares adapter conditioning from a pose image.
-
-| Input | Type | Description |
-|-------|------|-------------|
-| t2i_adapter | T2I_ADAPTER | Adapter from loader |
-| pose_image | IMAGE | Pose image to condition on |
-| adapter_conditioning_scale | float | Strength of conditioning (0-2) |
-
 ## Example Workflows
 
 ### Basic Text to Pose
@@ -136,19 +114,50 @@ Prepares adapter conditioning from a pose image.
 [T2P Model Loader] → [Text to Pose] → [Preview Image]
 ```
 
-### Pose-Controlled Image Generation (ControlNet)
+### Pose-Controlled Image Generation with ControlNet (Works with SD 1.5 and SDXL)
+
+The pose image from Text to Pose is compatible with any OpenPose ControlNet model. This is the **recommended approach** for most users:
+
 ```
-[T2P Model Loader] → [Text to Pose] → [Apply ControlNet] → [KSampler] → [VAE Decode]
-                                              ↑
-                            [Load ControlNet Model (OpenPose)]
+┌─────────────────────┐     ┌──────────────────────────┐
+│  Load Checkpoint    │     │  Load ControlNet Model   │
+│  (SD 1.5 or SDXL)   │     │  (OpenPose ControlNet)   │
+└────────┬────────────┘     └────────────┬─────────────┘
+         │                               │
+         ▼                               ▼
+┌─────────────────────┐     ┌──────────────────────────┐
+│   T2P Model Loader  │     │                          │
+└────────┬────────────┘     │                          │
+         │                  │                          │
+         ▼                  │                          │
+┌─────────────────────┐     │    Apply ControlNet      │
+│    Text to Pose     │────▶│                          │
+│ "a dancer jumping"  │     │    strength: 0.8         │
+└─────────────────────┘     └────────────┬─────────────┘
+                                         │
+         ┌───────────────────────────────┘
+         ▼
+┌─────────────────────┐
+│      KSampler       │◄── positive/negative CONDITIONING
+└────────┬────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│     VAE Decode      │
+└────────┬────────────┘
+         │
+         ▼
+    [Output Image]
 ```
 
-### Pose-Controlled Image Generation (T2I-Adapter)
-```
-[T2P Model Loader] → [Text to Pose] ──────────────────────→ [Apply T2I Pose Adapter]
-                                                                      ↓
-[T2I Pose Adapter Loader] ────────────────────────────────→ [SDXL Pipeline]
-```
+**Recommended ControlNet Models:**
+- **SD 1.5:** `control_v11p_sd15_openpose` 
+- **SDXL:** `controlnet-openpose-sdxl-1.0`
+
+**Node Connections:**
+1. `Text to Pose` → `pose_image` output connects to `Apply ControlNet` → `image` input
+2. `Load ControlNet Model` → connects to `Apply ControlNet` → `control_net` input  
+3. `Apply ControlNet` → `CONDITIONING` outputs connect to `KSampler`
 
 ## Example Prompts
 
@@ -182,8 +191,6 @@ Prepares adapter conditioning from a pose image.
 - PyTorch 2.0+
 - transformers
 - huggingface_hub
-- controlnet_aux
-- diffusers (for T2I-Adapter)
 - Pillow
 - numpy
 
@@ -192,7 +199,6 @@ Prepares adapter conditioning from a pose image.
 | Model | HuggingFace ID | Size |
 |-------|----------------|------|
 | T2P Transformer | clement-bonnet/t2p-transformer-v0 | ~150MB |
-| T2I-Adapter (SDXL) | clement-bonnet/t2i-adapter-sdxl-dwpose | ~300MB |
 
 Models are automatically downloaded from HuggingFace on first use and cached locally in `ComfyUI/models/t2p/`.
 
