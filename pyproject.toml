@@ -17,12 +17,12 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/YOUR_USERNAME/comfyui-text-to-pose"
-Documentation = "https://github.com/YOUR_USERNAME/comfyui-text-to-pose#readme"
-Issues = "https://github.com/YOUR_USERNAME/comfyui-text-to-pose/issues"
+Repository = "https://github.com/logicalor/comfyui_text_to_pose"
+Documentation = "https://github.com/logicalor/comfyui_text_to_pose#readme"
+Issues = "https://github.com/logicalor/comfyui_text_to_pose/issues"
 
 [tool.comfy]
-PublisherId = "your_publisher_id"
+PublisherId = "logicalor"
 DisplayName = "Text-to-Pose"
 Icon = ""
 
